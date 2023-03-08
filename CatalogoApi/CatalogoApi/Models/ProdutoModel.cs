@@ -1,4 +1,6 @@
-﻿namespace CatalogoApi.Models
+﻿using System.Text.Json.Serialization;
+
+namespace CatalogoApi.Models
 {
     public class ProdutoModel
     {
@@ -13,6 +15,7 @@
 
         //relacionamento um p/ muitos
         public int CategoriaId { get; set; }
+        [JsonIgnore]
         public CategoriaModel? Categoria { get; set; }
     }
 }
