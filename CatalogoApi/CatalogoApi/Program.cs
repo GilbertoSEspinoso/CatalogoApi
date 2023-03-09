@@ -1,6 +1,11 @@
 using CatalogoApi.Context;
 using CatalogoApi.Models;
+using CatalogoApi.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,9 +17,61 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<AppDbContext>(options =>
                  options
-                 .UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+                 .UseMySql(connectionString,
+                 ServerVersion.AutoDetect(connectionString)));
+
+//registrando o serviço token
+builder.Services.AddSingleton<ITokenServices>(new TokenServices());
+
+//validação do token
+builder.Services.AddAuthentication
+                    (JwtBearerDefaults.AuthenticationScheme)
+                    .AddJwtBearer(options =>
+                    {
+                        options.TokenValidationParameters = new TokenValidationParameters
+                        {
+                            ValidateIssuer = true,
+                            ValidateAudience = true,
+                            ValidateLifetime = true,
+                            ValidateIssuerSigningKey = true,
+
+                            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                            ValidAudience = builder.Configuration["Jwt:Audience"],
+                            IssuerSigningKey = new SymmetricSecurityKey
+                            (Encoding.UTF8.GetBytes(builder.Configuration["Jwt:key"]))
+                        };
+                    });
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+//endpoint para login
+app.MapPost("/login", [AllowAnonymous] (UserModel userModel, ITokenServices tokenServices) =>
+{
+    if (userModel == null)
+    {
+        return Results.BadRequest("Login Inválido");
+    }
+
+    if (userModel.UserName == "macoratti" && userModel.Password == "numsey#123")
+    {
+        var tokenString = tokenServices.GerarToken(app.Configuration["Jwt:Key"],
+                app.Configuration["Jwt:Issuer"],
+                app.Configuration["Jwt:Audience"],
+                userModel);
+        return Results.Ok(new { token = tokenString });
+    }
+    else
+    {
+        return Results.BadRequest("Login Inválido");
+    }
+
+}).Produces(StatusCodes.Status400BadRequest)
+                    .Produces(StatusCodes.Status200OK)
+                    .WithName("Login")
+                    .WithTags("Autenticacao");
+
 
 
 //definindo os endpoints 
@@ -30,7 +87,8 @@ app.MapPost("/categorias", async (CategoriaModel categoria, AppDbContext db)
     return Results.Created($"/categorias/{categoria.CategoriaId}", categoria);
 });
 
-app.MapGet("/categorias", async (AppDbContext db) => await db.Categorias.ToListAsync());
+app.MapGet("/categorias", async (AppDbContext db) =>
+    await db.Categorias.ToListAsync()).RequireAuthorization();
 
 app.MapGet("/categorias/{id:int}", async (int id, AppDbContext db) =>
 {
@@ -77,7 +135,8 @@ app.MapPost("/produtos", async (ProdutoModel produto, AppDbContext db)
     return Results.Created($"/produtos/{produto.ProdutoId}", produto);
 });
 
-app.MapGet("/produtos", async (AppDbContext db) => await db.Produtos.ToListAsync());
+app.MapGet("/produtos", async (AppDbContext db) => 
+    await db.Produtos.ToListAsync()).RequireAuthorization();
 
 app.MapGet("/produtos/{id:int}", async (int id, AppDbContext db) =>
 {
@@ -125,6 +184,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.Run();
 
