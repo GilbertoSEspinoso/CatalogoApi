@@ -1,4 +1,5 @@
 using CatalogoApi.ApiEndpoints;
+using CatalogoApi.AppServicesExtensions;
 using CatalogoApi.Context;
 using CatalogoApi.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -10,6 +11,8 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container. // ConfigureServices (class - StartUp)
+
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -39,7 +42,7 @@ builder.Services.AddSwaggerGen(c =>
                          new string[] {}
                     }
                 });
-}); 
+});
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -85,11 +88,11 @@ app.MapProdutosEndpoints();
 
 
 // Configure the HTTP request pipeline. //Configure (class - StartUp)
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+var environment = app.Environment;
+app.UserExceptionHandling(environment)
+    .UseSwaggerMiddleware()
+    .UseAppCors();
+
 
 app.UseAuthentication();
 app.UseAuthorization();
