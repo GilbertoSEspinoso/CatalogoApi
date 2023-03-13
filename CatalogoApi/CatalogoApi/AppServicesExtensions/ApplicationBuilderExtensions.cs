@@ -1,32 +1,31 @@
-﻿namespace CatalogoApi.AppServicesExtensions
+﻿namespace CatalogoApi.AppServicesExtensions;
+
+public static class ApplicationBuilderExtensions
 {
-    public static class ApplicationBuilderExtensions
+    public static IApplicationBuilder UserExceptionHandling(this IApplicationBuilder app, IWebHostEnvironment environment)
     {
-        public static IApplicationBuilder UserExceptionHandling(this IApplicationBuilder app, IWebHostEnvironment environment)
+        if (environment.IsDevelopment())
         {
-            if (environment.IsDevelopment())
-            {
-                app.UseDeveloperExceptionPage();
-            }
-            return app;
+            app.UseDeveloperExceptionPage();
         }
+        return app;
+    }
 
-        public static IApplicationBuilder UseAppCors(this IApplicationBuilder app)
+    public static IApplicationBuilder UseAppCors(this IApplicationBuilder app)
+    {
+        app.UseCors(p =>
         {
-            app.UseCors(p =>
-            {
-                p.AllowAnyOrigin();
-                p.WithMethods("GET");
-                p.AllowAnyHeader();
-            });
-            return app;
-        }
+            p.AllowAnyOrigin();
+            p.WithMethods("GET");
+            p.AllowAnyHeader();
+        });
+        return app;
+    }
 
-        public static IApplicationBuilder UseSwaggerMiddleware(this IApplicationBuilder app)
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-            return app;
-        }
+    public static IApplicationBuilder UseSwaggerMiddleware(this IApplicationBuilder app)
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+        return app;
     }
 }
